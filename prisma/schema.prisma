@@ -1,0 +1,403 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Single DB: Supabase Postgres only. All tables (Market, ChartRecord,
+// ResultMarket, ResultRecord, LuckyNumber, User, etc.) live in one DB.
+// DATABASE_URL = pooler (6543, pgbouncer=true) for runtime
+// DIRECT_URL   = direct (5432) for migrations (prisma migrate deploy)
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id              String       @id @default(cuid())
+  name            String
+  phone           String       @unique
+  passwordHash    String
+  referralCode    String       @unique
+  referredBy      String?
+  balance         Int          @default(0)
+  isGoldMember    Boolean      @default(false)
+  roles           String       @default("USER")
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  refreshTokens   RefreshToken[]
+  bids            Bid[]
+  walletTransactions WalletTransaction[]
+  orders          Order[]
+  withdrawals     Withdrawal[]
+  bankDetails     BankDetails?
+  referrals       Referral[]   @relation("Referrer")
+  invitedReferral Referral[]   @relation("Invitee")
+  deviceTokens    DeviceToken[]
+  notifications   Notification[]
+  deposits        Deposit[]
+
+  @@index([phone])
+  @@index([referralCode])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+model Market {
+  id        String   @id
+  name      String
+  result    String?
+  openTime  String
+  closeTime String
+  /// IANA timezone the open/close wall-clock times are expressed in.
+  timezone  String   @default("Asia/Kolkata")
+  /// Admin kill-switch: inactive markets reject all bids (MARKET_INACTIVE).
+  isActive  Boolean  @default(true)
+  isLive    Boolean  @default(false)
+  isClosed  Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bids          Bid[]
+  chartRecords  ChartRecord[]
+  gameTypes     MarketGameType[]
+
+  @@index([order])
+  @@index([isLive, isClosed])
+}
+
+model ChartRecord {
+  id          String   @id @default(cuid())
+  marketId    String
+  market      Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  date        String
+  open        String
+  openAnk     String
+  close       String
+  closeAnk    String
+  jodi        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([marketId, date])
+  @@index([marketId])
+  @@index([date])
+}
+
+model MarketGameType {
+  id        String   @id
+  title     String
+  iconName  String
+  isOpen    Boolean  @default(true)
+  code      String
+  order     Int      @default(0)
+  marketId  String
+  market    Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([marketId])
+  @@index([order])
+}
+
+model GameRate {
+  id        String   @id
+  gameType  String
+  rateRange String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([order])
+}
+
+model Notice {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  date      DateTime @default(now())
+  isImportant Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+}
+
+model Bid {
+  id            String     @id @default(cuid())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  marketId      String
+  market        Market     @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  gameType      String
+  gameTypeCode  String
+  number        String
+  amount        Int
+  rate          Int
+  status        String  @default("PENDING")
+  round         String  @default("OPEN")
+  wonAmount     Int?
+  date          DateTime   @default(now())
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([userId, date])
+  @@index([marketId, date])
+  @@index([status])
+}
+
+model WalletTransaction {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  amount    Int
+  title     String
+  status    String @default("PENDING")
+  reference String?
+  date      DateTime         @default(now())
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([userId, date])
+  @@index([userId, status])
+  @@index([reference])
+}
+
+model Order {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  marketId    String?
+  marketName  String?
+  amount      Int
+  status      String  @default("PENDING")
+  type        String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model Withdrawal {
+  id            String           @id @default(cuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount        Int
+  method        String
+  upiId         String?
+  bankDetailsId String?
+  bankDetails   BankDetails?     @relation(fields: [bankDetailsId], references: [id], onDelete: SetNull)
+  status        String @default("PENDING")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model BankDetails {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountHolder String
+  accountNumber String
+  ifscCode      String
+  bankName      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  withdrawals   Withdrawal[]
+}
+
+model Referral {
+  id              String   @id @default(cuid())
+  referrerId      String
+  referrer        User     @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  inviteePhone    String
+  invitee         User[]   @relation("Invitee")
+  bonusCredited   Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@unique([referrerId, inviteePhone])
+  @@index([referrerId])
+  @@index([inviteePhone])
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceToken String
+  platform  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, deviceToken])
+  @@index([userId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, isRead])
+}
+
+/// Idempotency ledger for bid placement: one row per (user, Idempotency-Key).
+/// Retries with the same key replay the stored response instead of creating
+/// a second bid / second wallet debit. Rows are claimed inside the same DB
+/// transaction as the bid so concurrent duplicates serialize on the unique
+/// constraint (second writer gets P2002 -> replays the winner's response).
+model IdempotencyKey {
+  id         String   @id @default(cuid())
+  userId     String
+  key        String
+  statusCode Int?
+  response   String?
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, key])
+  @@index([userId])
+}
+
+model AppConfig {
+  id              String   @id @default("app")
+  minAppVersion   String   @default("1.0.0")
+  forceUpdate     Boolean  @default(false)
+  banners         String   @default("[]")
+  supportContacts String   @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model HowToPlay {
+  id        String   @id @default("how-to-play")
+  sections  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ResultMarket {
+  id        String   @id
+  name      String
+  highlight Boolean  @default(false)
+  openTime  String
+  closeTime String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  records   ResultRecord[]
+
+  @@index([order])
+  @@index([highlight])
+}
+
+model ResultRecord {
+  id        String   @id @default(cuid())
+  marketId  String
+  market    ResultMarket @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  date      String
+  jodi      String?
+  panel     String?
+  open      String?
+  close     String?
+  source    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([marketId, date])
+  @@index([marketId])
+  @@index([date])
+}
+
+/// Daily lucky numbers published on the provider homepage
+/// ("Today Satta Matka Lucky Number": Ank + Final Ank).
+/// One row per IST date — scraped, never fabricated. When the provider
+/// hasn't published yet, there is simply no row (UI shows "awaiting").
+model LuckyNumber {
+  id        String   @id @default(cuid())
+  date      String   @unique
+  ank       String
+  finalAnk  String
+  source    String   @default("vip")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+model SupportTicket {
+  id        String   @id @default(cuid())
+  userId    String
+  subject   String
+  status    String   @default("open")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages  SupportTicketMessage[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model SupportTicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId    String
+  text      String
+  fromUser  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+  @@index([userId])
+}
+
+model Deposit {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount        Int
+  referenceId   String   @unique
+  utr           String?  @unique
+  screenshotUrl String?
+  status        String   @default("PENDING")
+  adminRemarks  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([referenceId])
+  @@index([utr])
+}
