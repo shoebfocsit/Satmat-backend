@@ -431,7 +431,7 @@ export class WalletService implements OnModuleInit {
     if (query.type === 'debit') where.type = 'DEBIT';
     if (query.type === 'pending') where.status = 'PENDING';
     if (query.search) {
-      where.title = { contains: query.search, mode: 'insensitive' };
+      where.title = { contains: query.search };
     }
     const [items, total] = await Promise.all([
       this.prisma.walletTransaction.findMany({
@@ -491,7 +491,7 @@ export class WalletService implements OnModuleInit {
       orderBy: { date: 'desc' },
     });
     const items = wonBids.slice((page - 1) * limit, page * limit);
-    const totalWinnings = wonBids.reduce((sum, b) => sum + (b.wonAmount || b.amount * b.rate), 0);
+    const totalWinnings = wonBids.reduce((sum, b) => sum + (b.wonAmount || Math.round((b.amount * b.rate) / 10)), 0);
     return {
       totalWinnings: totalWinnings / 100,
       winningCount: wonBids.length,
@@ -501,7 +501,7 @@ export class WalletService implements OnModuleInit {
         gameType: b.gameType,
         number: b.number,
         amount: b.amount / 100,
-        wonAmount: (b.wonAmount || b.amount * b.rate) / 100,
+        wonAmount: (b.wonAmount || Math.round((b.amount * b.rate) / 10)) / 100,
         date: b.date.toISOString(),
       })),
     };

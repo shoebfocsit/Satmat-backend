@@ -59,6 +59,9 @@ export class MarketStatusService implements OnModuleInit {
    * Best-effort — a failure only logs, never blocks boot.
    */
   async onModuleInit() {
+    // SQLite (local dev) always ships the full schema from `prisma migrate`; the
+    // Postgres-only self-heal DDL would only log a syntax error there.
+    if (String(process.env.DATABASE_URL || '').startsWith('file:')) return;
     await this.ensureMarketColumns().catch(() => undefined);
   }
 
@@ -312,7 +315,11 @@ export class MarketStatusService implements OnModuleInit {
       );
       this.logger.log('ensureMarketColumns: Market.timezone/isActive ready');
     } catch (e) {
-      this.logger.warn(`ensureMarketColumns skipped: ${(e as Error)?.message ?? e}`);
+      const msg = (e as Error)?.message ?? String(e);
+      // SQLite (local dev) rejects "ADD COLUMN IF NOT EXISTS" and always has the
+      // full schema from `prisma migrate`, so this failure is expected there.
+      if (msg.includes('near "EXISTS"')) return;
+      this.logger.warn(`ensureMarketColumns skipped: ${msg}`);
     }
   }
 }

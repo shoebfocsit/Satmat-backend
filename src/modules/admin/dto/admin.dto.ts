@@ -73,6 +73,12 @@ export class AdminQueryDto {
   limit?: number = 20;
 }
 
+export class AdminDepositsQueryDto extends AdminQueryDto {
+  @IsOptional()
+  @IsString()
+  status?: string;
+}
+
 export class AdjustWalletDto {
   @IsOptional()
   @IsString()

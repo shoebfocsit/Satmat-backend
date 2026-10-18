@@ -15,7 +15,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { WalletService } from '../wallet/wallet.service';
 import { parseTimeToMinutes, resolveTimezone } from '../../common/utils/market-time';
-import { AdminQueryDto, AdjustWalletDto, CreateNoticeDto, DeclareResultDto, OpenCloseDto, SettleWithdrawalDto, UpdateMarketScheduleDto } from './dto/admin.dto';
+import { AdminDepositsQueryDto, AdminQueryDto, AdjustWalletDto, CreateNoticeDto, DeclareResultDto, OpenCloseDto, SettleWithdrawalDto, UpdateMarketScheduleDto } from './dto/admin.dto';
 
 @Controller('admin')
 @Roles('ADMIN')
@@ -149,12 +149,12 @@ export class AdminController {
   }
 
   @Get('deposits')
-  async deposits(@Query() query: AdminQueryDto & { status?: string }) {
+  async deposits(@Query() query: AdminDepositsQueryDto) {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const where: any = { type: 'CREDIT' };
     if (query.status) where.status = query.status.toUpperCase();
-    if (query.search) where.title = { contains: query.search, mode: 'insensitive' as const };
+    if (query.search) where.title = { contains: query.search };
     const [items, total] = await Promise.all([
       this.prisma.walletTransaction.findMany({
         where,
@@ -210,7 +210,7 @@ export class AdminController {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const where: any = {};
-    if (query.search) where.subject = { contains: query.search, mode: 'insensitive' as const };
+    if (query.search) where.subject = { contains: query.search };
     const [items, total] = await Promise.all([
       this.prisma.supportTicket.findMany({
         where,
@@ -316,7 +316,7 @@ export class AdminController {
   @Get('users')
   async users(@Query() query: AdminQueryDto) {
     const where = query.search
-      ? { OR: [{ name: { contains: query.search, mode: 'insensitive' as const } }, { phone: { contains: query.search } }] }
+      ? { OR: [{ name: { contains: query.search } }, { phone: { contains: query.search } }] }
       : {};
     const page = query.page || 1;
     const limit = query.limit || 20;
@@ -391,6 +391,8 @@ export class AdminController {
         gameType: b.gameType,
         number: b.number,
         amount: b.amount / 100,
+        rate: b.rate,
+        wonAmount: b.wonAmount != null ? b.wonAmount / 100 : null,
         status: b.status.toLowerCase(),
         date: b.date.toISOString(),
       })),
@@ -467,7 +469,7 @@ export class AdminController {
     await this.prisma.$transaction(async (tx) => {
       // Won bids: per-user balance + wallet tx (must be individual — amounts differ).
       for (const bid of won) {
-        const wonAmount = bid.amount * bid.rate;
+        const wonAmount = Math.round((bid.amount * bid.rate) / 10);
         await tx.user.update({ where: { id: bid.userId }, data: { balance: { increment: wonAmount } } });
         await tx.bid.update({ where: { id: bid.id }, data: { status: 'WON', wonAmount } });
         await tx.walletTransaction.create({
@@ -489,13 +491,5 @@ export class AdminController {
     });
   }
 
-  @Get('deposits')
-  async adminListDeposits(@Query() query: any) {
-    return this.wallet.adminListDeposits(query);
-  }
-
-  @Post('deposits/:id/review')
-  async adminReviewDeposit(@Param('id') id: string, @Body() dto: { status: 'APPROVED' | 'REJECTED'; adminRemarks?: string }) {
-    return this.wallet.adminReviewDeposit(id, dto);
-  }
 }
+

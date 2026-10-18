@@ -2,14 +2,12 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Single DB: Supabase Postgres only. All tables (Market, ChartRecord,
+// Single DB: local SQLite file. All tables (Market, ChartRecord,
 // ResultMarket, ResultRecord, LuckyNumber, User, etc.) live in one DB.
-// DATABASE_URL = pooler (6543, pgbouncer=true) for runtime
-// DIRECT_URL   = direct (5432) for migrations (prisma migrate deploy)
+// DATABASE_URL = file:./dev.db (relative to this schema file, i.e. backend/prisma/dev.db)
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {

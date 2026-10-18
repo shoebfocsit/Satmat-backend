@@ -33,8 +33,9 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
       }
     }
     const dbUrl = String(config.DATABASE_URL || '');
-    if (dbUrl && !dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
-      errors.push('DATABASE_URL must be a valid postgresql:// URL');
+    const isSqlite = dbUrl.startsWith('file:');
+    if (dbUrl && !isSqlite && !dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
+      errors.push('DATABASE_URL must be a valid postgresql:// or file: (SQLite) URL');
     }
     if (dbUrl.includes('localhost') && String(config.SUPABASE_URL || '') === '') {
       // warn only, not error - localhost DB is okay for dev but suspicious in prod
