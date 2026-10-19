@@ -55,6 +55,16 @@ npm ci --include=dev
 echo "==> npm run build (prisma generate + nest build)"
 npm run build
 
+# Guard: `nest build` deletes dist (deleteOutDir:true). If an incremental
+# tsbuildinfo from a previous run survives, tsc can skip emitting and leave
+# dist empty -> dist/main.js missing. Clean the cache and rebuild once.
+if [ ! -f dist/main.js ]; then
+  echo "==> dist/main.js missing after build — clearing tsbuildinfo and rebuilding"
+  rm -f tsconfig.build.tsbuildinfo dist/tsconfig.build.tsbuildinfo
+  npm run build
+fi
+[ -f dist/main.js ] || { echo "ERROR: build did not produce dist/main.js"; exit 1; }
+
 echo "==> prisma migrate deploy"
 npx prisma migrate deploy
 
