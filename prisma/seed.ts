@@ -251,7 +251,7 @@ function requireAdminPassword(): string {
   if (isProd) {
     if (!pw) {
       throw new Error(
-        'ADMIN_PASSWORD is required in production. Set a strong admin password in the Render env vars.',
+        'ADMIN_PASSWORD is required in production. Set a strong admin password (>=8 chars) in backend/.env (or your host env vars), then re-run the deploy.',
       );
     }
     if (pw.length < 8) {

@@ -17,6 +17,25 @@ command -v pm2  >/dev/null || { echo "ERROR: pm2 not found — run: npm i -g pm2
 # Load env (DATABASE_URL, PORT) for this script
 set -a; . ./.env; set +a
 
+# --- Validate required secrets up front (fail fast with a clear message) ---
+missing=0
+if [ -z "${ADMIN_PASSWORD:-}" ]; then
+  echo "ERROR: ADMIN_PASSWORD is empty in .env — this is the SUPER_ADMIN login password (>=8 chars)."
+  missing=1
+fi
+if [ -z "${JWT_SECRET:-}" ] || [ "${#JWT_SECRET}" -lt 32 ] || [[ "${JWT_SECRET:-}" == *change-me* ]]; then
+  echo "ERROR: JWT_SECRET must be a random >=32-char value (generate: openssl rand -base64 48)."
+  missing=1
+fi
+if [ -z "${JWT_REFRESH_SECRET:-}" ] || [ "${#JWT_REFRESH_SECRET}" -lt 32 ] || [[ "${JWT_REFRESH_SECRET:-}" == *change-me* ]]; then
+  echo "ERROR: JWT_REFRESH_SECRET must be a random >=32-char value (generate: openssl rand -base64 48)."
+  missing=1
+fi
+if [ "$missing" -eq 1 ]; then
+  echo "==> Fix backend/.env (see .env.production.example) then re-run: bash scripts/deploy.sh"
+  exit 1
+fi
+
 # Ensure the SQLite data directory exists (DATABASE_URL should use an absolute
 # path outside the app dir, e.g. file:/opt/satmat/data/satmat.db)
 if [[ "${DATABASE_URL:-}" == file:* ]]; then
