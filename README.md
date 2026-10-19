@@ -58,7 +58,7 @@ npm run start:dev      # http://localhost:8080/api/v1
 
 | Role | Phone | Password |
 |------|-------|----------|
-| Admin | `+910000000000` | `admin123` |
+| Admin | `+919527194409` | set via `ADMIN_PASSWORD` env |
 
 New players self-register via `POST /auth/register` (gets a ₹25 welcome bonus).
 

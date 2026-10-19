@@ -216,20 +216,22 @@ async function main() {
   }
   console.log('ResultMarkets upserted. Result records are hydrated by the real scraper (satmat-web).');
 
-  // Single SUPER_ADMIN — old dummy +910000000000 is removed so only one admin ever exists.
-  // Any legacy dummy row is deleted before upsert to enforce "sirf 1 super admin".
-  await prisma.user.deleteMany({ where: { phone: '+910000000000' } });
+  // Single SUPER_ADMIN — legacy dummy +910000000000 and any previous admin are
+  // removed before upsert to enforce "sirf 1 super admin".
+  await prisma.user.deleteMany({
+    where: { phone: { in: ['+910000000000', '+918856015973'] } },
+  });
   const admin = await prisma.user.upsert({
-    where: { phone: '+918856015973' },
+    where: { phone: '+919527194409' },
     update: {
-      name: 'Shashank Wagh',
+      name: 'Aarif',
       passwordHash: await bcrypt.hash(requireAdminPassword(), 10),
       roles: 'SUPER_ADMIN,ADMIN',
       isActive: true,
     },
     create: {
-      name: 'Shashank Wagh',
-      phone: '+918856015973',
+      name: 'Aarif',
+      phone: '+919527194409',
       passwordHash: await bcrypt.hash(requireAdminPassword(), 10),
       referralCode: 'SUPERADMIN',
       roles: 'SUPER_ADMIN,ADMIN',
