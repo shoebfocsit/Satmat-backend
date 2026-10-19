@@ -31,6 +31,14 @@ if [ -z "${JWT_REFRESH_SECRET:-}" ] || [ "${#JWT_REFRESH_SECRET}" -lt 32 ] || [[
   echo "ERROR: JWT_REFRESH_SECRET must be a random >=32-char value (generate: openssl rand -base64 48)."
   missing=1
 fi
+if [[ ! "${APP_URL:-}" =~ ^https?:// ]] || [[ "${APP_URL:-}" == *'<'* ]]; then
+  echo "ERROR: APP_URL must be a valid http(s) URL with no <placeholders> (got: ${APP_URL:-empty})."
+  missing=1
+fi
+if [[ "${CORS_ORIGINS:-}" == *'<'* ]]; then
+  echo "ERROR: CORS_ORIGINS still has <CHANGE:...> placeholders — set your real frontend origins."
+  missing=1
+fi
 if [ "$missing" -eq 1 ]; then
   echo "==> Fix backend/.env (see .env.production.example) then re-run: bash scripts/deploy.sh"
   exit 1
